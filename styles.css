@@ -1080,6 +1080,80 @@ h2 { font-size: 20px; letter-spacing: -.01em; margin: 0 0 12px; }
 .rubric-cell .rv { font-size: 18px; font-weight: 800; color: var(--accent); }
 .rubric-cell .rl { font-size: 11px; color: var(--muted); font-weight: 700; }
 
+/* Live Breakout Room & Whole-Class Giant Chat */
+.br-chat-panel {
+  margin-top: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--bg);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 38%, var(--edge));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.br-prompt-banner {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent2) 14%, var(--panel2));
+  border-left: 3px solid var(--accent2);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.br-chat-feed {
+  max-height: 210px;
+  min-height: 92px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 9px;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+}
+.br-chat-msg {
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.42;
+  background: var(--panel2);
+  border: 1px solid var(--edge);
+}
+.br-chat-msg.teacher {
+  background: color-mix(in srgb, var(--accent2) 15%, var(--panel2));
+  border-color: color-mix(in srgb, var(--accent2) 45%, var(--edge));
+}
+.br-chat-msg.student {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--edge));
+}
+.br-chat-msg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 2px;
+  color: var(--accent);
+}
+.br-chat-msg.teacher .br-chat-msg-head { color: var(--accent2); }
+.br-chat-compose {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.br-chat-compose input {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
 /* Toast */
 .toast {
   position: fixed; bottom: 20px; right: 20px; z-index: 300;

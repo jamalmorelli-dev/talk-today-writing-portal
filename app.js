@@ -8282,6 +8282,433 @@ $('jVcUploadBtn').addEventListener('click', async () => {
   }
 });
 
+/* =========================================================================
+   WHOLE-CLASS OR ASSIGNED BREAKOUT ROOMS — LIVE GIANT WRITING CHAT ENGINE
+   ========================================================================= */
+const _origApplyBreakoutWorkspaceData = applyBreakoutWorkspaceData;
+applyBreakoutWorkspaceData = function(res, forceReloadRooms) {
+  const chatByRoomKey = {};
+  if (res && Array.isArray(res.rooms)) {
+    res.rooms.forEach((rm, idx) => {
+      const k = rm.roomId || ('NUM_' + (rm.roomNumber || (idx + 1)));
+      chatByRoomKey[k] = {
+        chatPrompt: rm.chatPrompt || '',
+        chatMessages: Array.isArray(rm.chatMessages) ? rm.chatMessages : []
+      };
+    });
+  }
+  _origApplyBreakoutWorkspaceData(res, forceReloadRooms);
+  brState.rooms.forEach((rm, idx) => {
+    const k = rm.roomId || ('NUM_' + (rm.roomNumber || (idx + 1)));
+    const info = chatByRoomKey[k];
+    if (info) {
+      rm.chatPrompt = info.chatPrompt;
+      rm.chatMessages = info.chatMessages;
+    } else {
+      rm.chatPrompt = rm.chatPrompt || '';
+      rm.chatMessages = Array.isArray(rm.chatMessages) ? rm.chatMessages : [];
+    }
+  });
+  syncBreakoutChatTargetDropdown();
+  renderBreakoutWorkspace();
+};
+
+function syncBreakoutChatTargetDropdown() {
+  const sel = $('brChatTargetSelect');
+  if (!sel) return;
+  const prev = sel.value || 'ALL';
+  clearEl(sel);
+  const allOpt = el('option', '📢 Broadcast to All Active Rooms (' + brState.rooms.length + ')');
+  allOpt.value = 'ALL';
+  sel.appendChild(allOpt);
+  brState.rooms.forEach(rm => {
+    const o = el('option', '🚪 ' + (rm.roomName || ('Breakout Room ' + rm.roomNumber)) + ' (' + (rm.members ? rm.members.length : 0) + ')');
+    o.value = rm.roomId || ('NUM_' + rm.roomNumber);
+    sel.appendChild(o);
+  });
+  const validVals = Array.from(sel.querySelectorAll('option')).map(o => o.value);
+  sel.value = validVals.indexOf(prev) >= 0 ? prev : 'ALL';
+}
+
+function formatChatTimeShort(iso) {
+  if (!iso) return 'just now';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'just now';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return 'just now';
+  }
+}
+
+function buildChatFeedElement(messages, emptyHint) {
+  const feed = el('div', '', 'br-chat-feed');
+  const list = Array.isArray(messages) ? messages : [];
+  if (!list.length) {
+    const emp = el('div', emptyHint || '💬 Live Giant Writing Chat is ready! Post a writing prompt or sentence above — every student in this room sees and replies in real time.', 'muted');
+    emp.style.fontSize = '12px';
+    emp.style.padding = '6px 4px';
+    feed.appendChild(emp);
+    return feed;
+  }
+  list.forEach(msg => {
+    const isTeacher = msg.role === 'TEACHER';
+    const bubble = el('div', '', 'br-chat-msg ' + (isTeacher ? 'teacher' : 'student'));
+    const head = el('div', '', 'br-chat-msg-head');
+    const rawAuthor = msg.author || msg.senderName || (isTeacher ? 'Teacher' : 'Student');
+    const who = el('strong', (isTeacher && rawAuthor.indexOf('👩') < 0 && rawAuthor.indexOf('👑') < 0 ? '👩‍🏫 ' : (!isTeacher ? '✍️ ' : '')) + rawAuthor);
+    head.appendChild(who);
+    const metaRight = el('span', (msg.cefr ? (msg.cefr + ' · ') : '') + formatChatTimeShort(msg.ts || msg.createdAt));
+    head.appendChild(metaRight);
+    bubble.appendChild(head);
+    const body = el('div', msg.text || '');
+    bubble.appendChild(body);
+    feed.appendChild(bubble);
+  });
+  setTimeout(() => { try { feed.scrollTop = feed.scrollHeight; } catch (e) {} }, 20);
+  return feed;
+}
+
+async function sendTeacherBreakoutChat(opts) {
+  const o = opts || {};
+  if (!brState.rooms.length) {
+    showBreakoutStatus('⚠️ First click "🏛️ Whole Room (Giant Chat)" or "⚡ Create Breakout Rooms" so there is an active room to chat with!', true, false);
+    return;
+  }
+  // If rooms haven't been saved to the backend yet (missing roomId), save them first so roomIds exist!
+  if (brState.rooms.some(r => !r.roomId)) {
+    await saveBreakoutRoomsNow();
+  }
+  const targetVal = o.roomId || ($('brChatTargetSelect') ? $('brChatTargetSelect').value : 'ALL') || 'ALL';
+  const text = String(o.text !== undefined ? o.text : '').trim();
+  const prompt = o.prompt !== undefined ? String(o.prompt).trim() : undefined;
+  if (!text && prompt === undefined) return;
+
+  try {
+    const res = await rpc('breakoutPostChat', jigsawEditorCreds({
+      teacherFilter: brState.teacherFilter,
+      classFilter: brState.classFilter,
+      roomId: targetVal,
+      text,
+      prompt
+    }));
+    if (!res || !res.ok) {
+      showToast((res && res.error) || 'Could not post to Room Chat.');
+      return;
+    }
+    if (res.rooms && Array.isArray(res.rooms)) {
+      const byId = {};
+      res.rooms.forEach(r => { if (r.roomId) byId[r.roomId] = r; });
+      brState.rooms.forEach(rm => {
+        const up = byId[rm.roomId];
+        if (up) {
+          rm.chatPrompt = up.chatPrompt || '';
+          rm.chatMessages = Array.isArray(up.chatMessages) ? up.chatMessages : [];
+        }
+      });
+      renderBreakoutWorkspace();
+    } else {
+      await pollBreakoutWorkspace(false, false);
+    }
+    if (prompt !== undefined && prompt) {
+      showToast('📌 Writing prompt pinned to ' + (targetVal === 'ALL' ? 'all active rooms!' : 'selected room!'));
+    } else if (text) {
+      showToast('💬 Sent to ' + (targetVal === 'ALL' ? 'all active rooms!' : 'room chat!'));
+    }
+  } catch (err) {
+    showToast(err.message || 'Chat post failed.');
+  }
+}
+
+async function buildWholeClassBreakoutRoom() {
+  const ws = brState.wsData;
+  if (!ws) return;
+  const allStudents = ws.students || [];
+  let pool = brState.poolMode === 'ONLINE'
+    ? allStudents.filter(s => s.isOnline)
+    : allStudents.slice();
+  if (!pool.length && allStudents.length) {
+    pool = allStudents.slice();
+    brState.poolMode = 'ALL';
+  }
+  if (!pool.length) {
+    showBreakoutStatus('⚠️ No students found in this cohort yet.', true, false);
+    return;
+  }
+
+  if ($('brSizeSelect')) $('brSizeSelect').value = 'ROOMS_1';
+  const meta = getSelectedBreakoutJigsawMeta();
+  const validKeys = JIGSAW_PART_KEYS.slice(0, meta.partCount);
+  const prevRoom = brState.rooms[0] || {};
+
+  brState.rooms = [{
+    roomId: prevRoom.roomId || '',
+    roomNumber: 1,
+    roomName: '🏛️ Whole Class Writing Room',
+    selected: true,
+    activeJigsawId: prevRoom.activeJigsawId || '',
+    activeJigsawTitle: prevRoom.activeJigsawTitle || '',
+    activeJigsawCefr: prevRoom.activeJigsawCefr || '',
+    chatPrompt: prevRoom.chatPrompt || 'Write 2–3 sentences using our unit vocabulary and connectors (because, however, for example). Reply to a classmate!',
+    chatMessages: Array.isArray(prevRoom.chatMessages) ? prevRoom.chatMessages : [],
+    members: pool.map((st, mIdx) => ({
+      code: st.code,
+      fullName: st.fullName,
+      className: st.className,
+      homeCefr: st.homeCefr,
+      presenceStatus: st.presenceStatus,
+      isOnline: st.isOnline,
+      kp: st.kp || 0,
+      accuracy: st.accuracy,
+      partKey: validKeys[mIdx % validKeys.length],
+      expertDone: false
+    }))
+  }];
+
+  brState.dirty = true;
+  brState.viewMode = 'HOME';
+  syncBreakoutChatTargetDropdown();
+  renderBreakoutWorkspace();
+  await saveBreakoutRoomsNow();
+  showBreakoutStatus(
+    '🏛️ Whole Class Writing Room is LIVE with ' + pool.length + ' student(s)! Everyone is now in one Giant Classroom Writing Chat on their Dashboard.',
+    false,
+    false
+  );
+}
+
+const _origRenderBreakoutWorkspace = renderBreakoutWorkspace;
+renderBreakoutWorkspace = function() {
+  _origRenderBreakoutWorkspace();
+  syncBreakoutChatTargetDropdown();
+
+  const roomsGrid = $('brRoomsGrid');
+  if (!roomsGrid || !brState.rooms.length) return;
+  const cards = Array.from(roomsGrid.querySelectorAll('.br-room-card'));
+
+  cards.forEach((card, rIdx) => {
+    const room = brState.rooms[rIdx];
+    if (!room) return;
+    if (card.querySelector('.br-chat-panel')) return;
+
+    const chatPanel = el('div', '', 'br-chat-panel');
+    const cHead = el('div', '', 'state');
+    const isWhole = (room.roomName || '').toLowerCase().indexOf('whole') >= 0 || brState.rooms.length === 1;
+    cHead.appendChild(el('strong', (isWhole ? '🏛️ Live Whole-Room Giant Chat' : ('💬 ' + room.roomName + ' Live Chat'))));
+    const msgCount = Array.isArray(room.chatMessages) ? room.chatMessages.length : 0;
+    cHead.appendChild(el('span', msgCount + (msgCount === 1 ? ' msg' : ' msgs'), 'lvl'));
+    chatPanel.appendChild(cHead);
+
+    if (room.chatPrompt) {
+      chatPanel.appendChild(el('div', '📌 Writing Prompt: ' + room.chatPrompt, 'br-prompt-banner'));
+    }
+
+    const feed = buildChatFeedElement(
+      room.chatMessages,
+      '💬 No messages in ' + room.roomName + ' yet. Post a prompt or message below to kick off the giant writing chat!'
+    );
+    chatPanel.appendChild(feed);
+
+    const comp = el('div', '', 'br-chat-compose');
+    const inp = el('input', '', 'j-input br-room-chat-inp');
+    inp.type = 'text';
+    inp.placeholder = 'Write a live message or model sentence to ' + room.roomName + '...';
+    inp.dataset.roomIndex = String(rIdx);
+    const sendBtn = el('button', '💬 Send', 'btn br-room-chat-btn');
+    sendBtn.type = 'button';
+    sendBtn.style.padding = '6px 12px';
+    sendBtn.style.fontSize = '12px';
+    sendBtn.dataset.roomIndex = String(rIdx);
+
+    const triggerRoomSend = async () => {
+      const txt = inp.value.trim();
+      if (!txt) return;
+      inp.value = '';
+      sendBtn.disabled = true;
+      try {
+        await sendTeacherBreakoutChat({
+          roomId: room.roomId || ('NUM_' + room.roomNumber),
+          text: txt
+        });
+      } finally {
+        sendBtn.disabled = false;
+      }
+    };
+    sendBtn.addEventListener('click', triggerRoomSend);
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerRoomSend();
+      }
+    });
+
+    comp.appendChild(inp);
+    comp.appendChild(sendBtn);
+    chatPanel.appendChild(comp);
+
+    // Insert right before the footer inside the room card
+    const lastChild = card.lastElementChild;
+    if (lastChild) card.insertBefore(chatPanel, lastChild);
+    else card.appendChild(chatPanel);
+  });
+};
+
+renderStudentBreakoutBanner = function(br) {
+  const box = $('studentBreakoutBanner');
+  if (!box) return;
+  const existingInp = box.querySelector('#studentBrChatInput');
+  const prevTyped = existingInp ? existingInp.value : '';
+  const wasFocused = document.activeElement && document.activeElement.id === 'studentBrChatInput';
+  clearEl(box);
+  if (!br || !br.roomName) {
+    box.classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  box.style.flexDirection = 'column';
+  box.style.alignItems = 'stretch';
+  box.style.gap = '12px';
+
+  const topBar = el('div', '', 'state');
+  topBar.style.flexWrap = 'wrap';
+  topBar.style.gap = '10px';
+
+  const left = el('div');
+  left.style.display = 'flex';
+  left.style.flexDirection = 'column';
+  left.style.gap = '4px';
+
+  const isWhole = br.roomName.toLowerCase().indexOf('whole') >= 0;
+  left.appendChild(el('div', isWhole ? '🏛️ LIVE WHOLE-CLASS GIANT WRITING ROOM' : '🚪 YOUR LIVE CLASSROOM BREAKOUT ROOM & CHAT', 'eyebrow'));
+  const titleLine = el('div');
+  titleLine.style.fontWeight = '800';
+  titleLine.style.fontSize = '18px';
+  titleLine.textContent = (isWhole ? '🏛️ ' : '🚪 ') + br.roomName + (br.myPartKey ? (' · 🧩 Expert Part ' + br.myPartKey) : '');
+  left.appendChild(titleLine);
+
+  if (Array.isArray(br.members) && br.members.length) {
+    const teamRow = el('div', '', 't-controls');
+    teamRow.appendChild(el('span', isWhole ? ('Classmates in Room (' + br.members.length + '):') : 'Room Teammates:', 'muted'));
+    br.members.forEach(m => {
+      const lbl = (m.isMe ? ('⭐ ' + m.name + ' (You)') : ('🟢 ' + m.name)) + (m.partKey ? (' · Part ' + m.partKey) : '');
+      teamRow.appendChild(el('span', lbl, 'part-badge'));
+    });
+    left.appendChild(teamRow);
+  }
+  topBar.appendChild(left);
+
+  if (br.activeJigsawId) {
+    const openBtn = el('button', '🧩 Open Group Writing Jigsaw (Part ' + (br.myPartKey || 'A') + ') →', 'btn');
+    openBtn.type = 'button';
+    openBtn.addEventListener('click', () => openStudentJigsaw(br.activeJigsawId));
+    topBar.appendChild(openBtn);
+  }
+  box.appendChild(topBar);
+
+  // Live Giant Writing Chat Panel for Students!
+  const chatWrap = el('div', '', 'br-chat-panel');
+  chatWrap.style.marginTop = '2px';
+
+  const chatHead = el('div', '', 'state');
+  chatHead.appendChild(el('strong', '💬 Live Giant Room Writing Chat — Write & Reply with Your Classmates'));
+  const msgCount = Array.isArray(br.chatMessages) ? br.chatMessages.length : 0;
+  chatHead.appendChild(el('span', '🟢 Live · ' + msgCount + (msgCount === 1 ? ' message' : ' messages'), 'lvl'));
+  chatWrap.appendChild(chatHead);
+
+  if (br.chatPrompt) {
+    chatWrap.appendChild(el('div', '📌 Teacher Writing Prompt: ' + br.chatPrompt, 'br-prompt-banner'));
+  }
+
+  const feed = buildChatFeedElement(
+    br.chatMessages,
+    '💬 Be the first to post a sentence in ' + br.roomName + '! Use complete sentences and connectors.'
+  );
+  feed.id = 'studentBrChatFeed';
+  feed.style.maxHeight = '240px';
+  chatWrap.appendChild(feed);
+
+  const comp = el('div', '', 'br-chat-compose');
+  const inp = el('input', '', 'j-input');
+  inp.id = 'studentBrChatInput';
+  inp.type = 'text';
+  inp.placeholder = 'Write your sentence or reply to your room here...';
+  inp.value = prevTyped;
+
+  const sendBtn = el('button', '💬 Send to Room Chat →', 'btn');
+  sendBtn.id = 'studentBrChatSendBtn';
+  sendBtn.type = 'button';
+  sendBtn.style.padding = '8px 14px';
+  sendBtn.style.fontSize = '13px';
+
+  const submitStudentChat = async () => {
+    const txt = inp.value.trim();
+    if (!txt) return;
+    sendBtn.disabled = true;
+    sendBtn.textContent = '⏳ Sending…';
+    try {
+      const res = await rpc('studentBreakoutSendChat', state.code, txt, br.roomId || '');
+      if (!res || !res.ok) throw new Error((res && res.error) || 'Could not send message.');
+      inp.value = '';
+      if (res.breakoutRoom) {
+        renderStudentBreakoutBanner(res.breakoutRoom);
+      } else {
+        br.chatMessages = Array.isArray(res.chatMessages) ? res.chatMessages : (br.chatMessages || []);
+        renderStudentBreakoutBanner(br);
+      }
+    } catch (err) {
+      showToast(err.message || 'Could not send chat message.');
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = '💬 Send to Room Chat →';
+    }
+  };
+
+  sendBtn.addEventListener('click', submitStudentChat);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitStudentChat();
+    }
+  });
+
+  comp.appendChild(inp);
+  comp.appendChild(sendBtn);
+  chatWrap.appendChild(comp);
+  box.appendChild(chatWrap);
+
+  if (wasFocused) {
+    const newInp = box.querySelector('#studentBrChatInput');
+    if (newInp) { try { newInp.focus(); } catch (e) {} }
+  }
+};
+
+if ($('brWholeRoomBtn')) {
+  $('brWholeRoomBtn').addEventListener('click', () => buildWholeClassBreakoutRoom());
+}
+if ($('brSetPromptBtn')) {
+  $('brSetPromptBtn').addEventListener('click', () => {
+    const p = $('brBroadcastPromptInput') ? $('brBroadcastPromptInput').value.trim() : '';
+    sendTeacherBreakoutChat({ prompt: p, text: '' });
+  });
+}
+if ($('brBroadcastChatBtn')) {
+  $('brBroadcastChatBtn').addEventListener('click', () => {
+    const inp = $('brBroadcastChatInput');
+    const txt = inp ? inp.value.trim() : '';
+    if (!txt) return;
+    inp.value = '';
+    sendTeacherBreakoutChat({ text: txt });
+  });
+}
+if ($('brBroadcastChatInput')) {
+  $('brBroadcastChatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if ($('brBroadcastChatBtn')) $('brBroadcastChatBtn').click();
+    }
+  });
+}
+
 /* ---------- Application Bootstrap & Session Auto-Restore ---------- */
 (function init() {
   applySettings();

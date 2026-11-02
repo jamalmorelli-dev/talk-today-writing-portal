@@ -744,6 +744,7 @@
           </div>
           <div class="t-controls">
             <select id="brSizeSelect" class="t-select" aria-label="Room Sizing">
+              <option value="ROOMS_1">🏛️ 1 Whole Class Room (Giant Chat)</option>
               <option value="SIZE_2">👥 Pairs (2 per room)</option>
               <option value="SIZE_3" selected>👥 Trios (3 per room)</option>
               <option value="SIZE_4">👥 Quads (4 per room)</option>
@@ -758,6 +759,7 @@
               <option value="BALANCED" selected>⚖️ Skill-Balanced (Mix KP)</option>
               <option value="LEVEL">📊 Same Level Together</option>
             </select>
+            <button type="button" id="brWholeRoomBtn" class="btn" style="padding:8px 14px;font-size:13px;background:linear-gradient(135deg,#0ea5e9,#2563eb)">🏛️ Whole Room (Giant Chat)</button>
             <button type="button" id="brAutoBuildBtn" class="btn" style="padding:8px 14px;font-size:13px">⚡ Create Breakout Rooms</button>
             <button type="button" id="brAddRoomBtn" class="iconBtn">➕ Add Room</button>
             <button type="button" id="brPlaceLateBtn" class="iconBtn" title="Drop newly logged-in Lobby students into the smallest existing rooms">⚡ Place Latecomers</button>
@@ -798,6 +800,28 @@
         <div id="brStatusBanner" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--goodBg);border:1px solid var(--good);font-size:13.5px;font-weight:700">
           <span id="brStatusText"></span>
           <button type="button" id="brOpenLiveAfterAssignBtn" class="btn" style="padding:6px 12px;font-size:12.5px">📡 Open Live Team Progress →</button>
+        </div>
+      </div>
+
+      
+      <!-- Live Whole-Room & Multi-Room Giant Chat Broadcast Bar -->
+      <div id="brBroadcastChatBar" class="t-bar" style="margin-bottom:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--panel)),var(--panel2));border:1.5px solid color-mix(in srgb,var(--accent) 42%,var(--edge))">
+        <div class="t-bar-top" style="margin-bottom:8px">
+          <div>
+            <span class="eyebrow">💬 LIVE WHOLE-CLASS OR BREAKOUT GIANT WRITING CHAT</span>
+            <div style="font-weight:800;font-size:14.5px;margin-top:2px">Keep the whole class in 1 Giant Chat Room or split into Breakout Rooms — set a shared writing prompt and chat live with every student!</div>
+          </div>
+          <select id="brChatTargetSelect" class="t-select" style="min-width:210px" aria-label="Target Room for Chat Broadcast">
+            <option value="ALL">📢 Broadcast to All Active Rooms</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="brBroadcastPromptInput" class="j-input" style="flex:1;min-width:240px" placeholder="📌 Pin a Room Writing Prompt (e.g., Write 2 sentences together using 'because' and 'finally'!)">
+          <button type="button" id="brSetPromptBtn" class="iconBtn" style="font-weight:800">📌 Pin Writing Prompt</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+          <input type="text" id="brBroadcastChatInput" class="j-input" style="flex:1;min-width:240px" placeholder="💬 Type a live message to the room chat (students see &amp; reply in real time)...">
+          <button type="button" id="brBroadcastChatBtn" class="btn" style="padding:8px 16px;font-size:13px">💬 Send to Room Chat →</button>
         </div>
       </div>
 
