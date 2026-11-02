@@ -150,7 +150,7 @@ async function rpc(fnName, ...args) {
   await ensureBridgeReady();
   return new Promise((resolve, reject) => {
     const id = 'c_' + (++bridgeState.seq);
-    if (fnName !== 'studentBeacon' && fnName !== 'teacherLivePoll' && fnName !== 'studentBreakoutPoll') {
+    if (fnName !== 'studentBeacon' && fnName !== 'teacherLivePoll' && fnName !== 'studentBreakoutPoll' && fnName !== 'logWritingIntegrityEvent') {
       setConnPill('busy', LONG_AUDIO_RPCS.has(fnName) ? 'AI Coach Analyzing…' : 'Syncing…');
     }
     const timer = setTimeout(() => {
@@ -2027,6 +2027,9 @@ function insertTextIntoDraft(snippet) {
   const needSpaceBefore = before.length > 0 && !/\s$/.test(before);
   const needSpaceAfter = after.length > 0 && !/^\s/.test(after);
   const insertStr = (needSpaceBefore ? ' ' : '') + snippet + (needSpaceAfter ? ' ' : '');
+  if (typeof window.__markTrustedScaffold === 'function') {
+    window.__markTrustedScaffold(ta, insertStr.length);
+  }
   ta.value = before + insertStr + after;
   ta.focus();
   const newPos = before.length + insertStr.length;
@@ -2188,6 +2191,15 @@ function renderCoachFeedbackCard(resultObj, task) {
   if (planArr.length >= 2) {
     metrics.appendChild(el('span', '📋 Simple Planner: ✓ Completed (+5 KP)', 'coach-metric'));
   }
+  if (resultObj.integrity) {
+    const ig = resultObj.integrity;
+    const igClean = !ig.flags || ig.flags.length === 0;
+    const igChip = el('span', igClean
+      ? ('🛡️ Original Writing Verified (' + (ig.telemetry && ig.telemetry.keystrokes ? ig.telemetry.keystrokes + ' keystrokes' : '100% authentic') + ')')
+      : ('🛡️ Integrity Check: ' + (ig.flags || []).join(', ')), 'coach-metric');
+    if (!igClean) igChip.style.borderColor = 'var(--bad)';
+    metrics.appendChild(igChip);
+  }
   card.appendChild(metrics);
 
   // Student's Written Draft
@@ -2244,7 +2256,11 @@ function renderCoachFeedbackCard(resultObj, task) {
     usePolishedBtn.style.fontSize = '11.5px';
     usePolishedBtn.style.padding = '3px 9px';
     usePolishedBtn.addEventListener('click', () => {
-      $('mWriteInput').value = polished;
+      const ta = $('mWriteInput');
+      if (typeof window.__markTrustedScaffold === 'function') {
+        window.__markTrustedScaffold(ta, polished.length);
+      }
+      ta.value = polished;
       $('writingStudioBox').classList.remove('hidden');
       updateLiveWritingTelemetry();
       showToast('✨ Polished upgrade copied into editor!');
@@ -2288,6 +2304,9 @@ function renderSpeakingTask(idx) {
   if (!task) return;
   $('lessonErr').textContent = '';
   taskDraftStartMs = Date.now();
+  if (typeof window.resetWritingIntegritySession === 'function') {
+    window.resetWritingIntegritySession('MISSION', (state.lesson ? state.lesson.id + ':' : '') + (task.promptId || ('T' + (idx + 1))));
+  }
 
   // Clickable Task Dots (1..4)
   const dotsBox = $('dots');
@@ -2398,7 +2417,11 @@ $('insertPlanBtn').addEventListener('click', () => {
     return clean;
   }).join(' ');
   const ta = $('mWriteInput');
-  ta.value = ta.value.trim() ? (ta.value.trim() + ' ' + combined) : combined;
+  const nextVal = ta.value.trim() ? (ta.value.trim() + ' ' + combined) : combined;
+  if (typeof window.__markTrustedScaffold === 'function') {
+    window.__markTrustedScaffold(ta, combined.length + 2);
+  }
+  ta.value = nextVal;
   ta.focus();
   updateLiveWritingTelemetry();
   showToast('✨ Inserted your Simple Plan into your draft!');
@@ -2477,7 +2500,10 @@ $('mSubmitWriteBtn').addEventListener('click', async () => {
       promptId: task.promptId,
       writtenText: writtenText,
       planSteps: planSteps,
-      durationSeconds: elapsedSec
+      durationSeconds: elapsedSec,
+      integrityTelemetry: typeof window.getWritingIntegrityTelemetry === 'function'
+        ? window.getWritingIntegrityTelemetry('MISSION')
+        : null
     });
     if (!res || !res.ok) throw new Error((res && res.error) || 'Could not evaluate written draft.');
 
@@ -2499,7 +2525,8 @@ $('mSubmitWriteBtn').addEventListener('click', async () => {
       coachSummary: res.praise,
       coachTip: res.coachTip,
       naturalRephrase: res.polishedVersion || res.naturalRephrase,
-      pointsAwarded: res.pointsAwarded
+      pointsAwarded: res.pointsAwarded,
+      integrity: res.integrity || null
     };
     if (res.modelAnswer) task.modelAnswer = res.modelAnswer;
     if (res.evidence) task.evidence = res.evidence;
@@ -2607,7 +2634,10 @@ $('mRecSubmitBtn').addEventListener('click', async () => {
       planSteps: planSteps,
       base64Audio: b64,
       mimeType: missionRec.lastMime,
-      durationSeconds: missionRec.lastDurationSec
+      durationSeconds: missionRec.lastDurationSec,
+      integrityTelemetry: typeof window.getWritingIntegrityTelemetry === 'function'
+        ? window.getWritingIntegrityTelemetry('MISSION')
+        : null
     });
     if (!res || !res.ok) throw new Error((res && res.error) || 'Could not analyze recording.');
 
@@ -2628,7 +2658,8 @@ $('mRecSubmitBtn').addEventListener('click', async () => {
       coachSummary: res.praise,
       coachTip: res.coachTip,
       naturalRephrase: res.polishedVersion || res.naturalRephrase,
-      pointsAwarded: res.pointsAwarded
+      pointsAwarded: res.pointsAwarded,
+      integrity: res.integrity || null
     };
     if (res.modelAnswer) task.modelAnswer = res.modelAnswer;
     if (res.evidence) task.evidence = res.evidence;
@@ -2884,6 +2915,9 @@ function beginPlacementTask(tIdx) {
   clearInterval(plState.prepTimer);
   plState.taskIdx = tIdx;
   plState.taskStartMs = Date.now();
+  if (typeof window.resetWritingIntegritySession === 'function') {
+    window.resetWritingIntegritySession('PLACEMENT_CHECK', (plState.attemptId || 'ATT') + ':T' + (tIdx + 1));
+  }
   const t = plState.tasks[tIdx];
   if (!t) return;
   setPlacementStepUI(tIdx === 0 ? 3 : 4);
@@ -2936,7 +2970,10 @@ $('plSubmitWrittenTaskBtn').addEventListener('click', async () => {
       promptId: t.promptId,
       writtenText: writtenText,
       planText: planText,
-      duration: elapsedSec
+      duration: elapsedSec,
+      integrityTelemetry: typeof window.getWritingIntegrityTelemetry === 'function'
+        ? window.getWritingIntegrityTelemetry('PLACEMENT_CHECK')
+        : null
     });
     if (!upRes || !upRes.ok) throw new Error((upRes && upRes.error) || 'Submission failed.');
 
@@ -4270,6 +4307,28 @@ function renderStudentInspector(allStudents) {
   head.appendChild(headRight);
   box.appendChild(head);
 
+  if (!teacherState.hideAnswers && st.integrityAlert) {
+    const al = st.integrityAlert;
+    const alBox = el('div', '', 'integrity-shield-bar alert');
+    alBox.style.marginTop = '10px';
+    const alLeft = el('div');
+    alLeft.appendChild(el('strong', '🛡️ Live Anti-Cheat / Originality Alert (' + (al.severity || 'ALERT') + '): '));
+    const flagStr = Array.isArray(al.flags) && al.flags.length ? al.flags.join(' · ') : (al.eventType || 'INTEGRITY_EVENT');
+    alLeft.appendChild(el('span', flagStr));
+    if (Array.isArray(al.reasons) && al.reasons.length) {
+      const rSub = el('div', al.reasons.join(' '), 'muted');
+      rSub.style.fontSize = '11.5px';
+      rSub.style.marginTop = '2px';
+      alLeft.appendChild(rSub);
+    }
+    alBox.appendChild(alLeft);
+    if (al.telemetry) {
+      const t = al.telemetry;
+      alBox.appendChild(el('span', '⌨️ ' + (t.keystrokes || 0) + ' keys · 📋 ' + (t.pasteAttempts || 0) + ' paste blocks · 🔀 ' + (t.tabSwitches || 0) + ' tab switches', 'chip'));
+    }
+    box.appendChild(alBox);
+  }
+
   if (!st.activeLesson) {
     const emptyP = el('p', 'This student has not started a Writing Mission yet.', 'muted');
     emptyP.style.marginTop = '12px';
@@ -4341,6 +4400,18 @@ function renderStudentInspector(allStudents) {
       tipDiv.style.fontSize = '12px';
       tipDiv.style.marginTop = '4px';
       card.appendChild(tipDiv);
+    }
+    if (!teacherState.hideAnswers && cell.integrity) {
+      const ig = cell.integrity;
+      const igClean = !ig.flags || ig.flags.length === 0;
+      const t = ig.telemetry || {};
+      const igBar = el('div', '', 'integrity-shield-bar' + (igClean ? '' : (ig.severity === 'HIGH' ? ' alert' : ' warn')));
+      igBar.style.marginTop = '6px';
+      igBar.appendChild(el('span', igClean
+        ? '🛡️ Verified Original Writing'
+        : ('🛡️ Flagged (' + (ig.severity || 'WARN') + '): ' + (ig.flags || []).join(', '))));
+      igBar.appendChild(el('span', '⌨️ ' + (t.keystrokes || 0) + ' keys · ⌫ ' + (t.backspaces || 0) + ' edits · 📋 ' + (t.pasteAttempts || 0) + ' pastes · 🔀 ' + (t.tabSwitches || 0) + ' tabs', 'muted'));
+      card.appendChild(igBar);
     }
     if (cell.audioFileId) {
       const playBtn = el('button', '▶ Play Dictation Audio' + (cell.duration ? (' (' + cell.duration + 's)') : ''), 'iconBtn');
@@ -7746,7 +7817,11 @@ function rpRenderTurnCard(popIds) {
         if (!inp || inp.disabled) return;
         const cur = inp.value;
         const pad = cur && !/\s$/.test(cur) ? ' ' : '';
-        inp.value = cur + pad + k + ' ';
+        const addStr = pad + k + ' ';
+        if (typeof window.__markTrustedScaffold === 'function') {
+          window.__markTrustedScaffold(inp, addStr.length);
+        }
+        inp.value = cur + addStr;
         inp.focus();
       });
       kwBox.appendChild(sp);
@@ -7786,6 +7861,9 @@ function rpPrepareTurn() {
   rpResetMicUI();
   if ($('rpWriteInput')) $('rpWriteInput').value = '';
   rpState.writeStartedAt = 0;
+  if (typeof window.resetWritingIntegritySession === 'function') {
+    window.resetWritingIntegritySession('ROLEPLAY', (s.sessionId || 'RP') + ':T' + ((s.lastTurn || 0) + 1));
+  }
   rpRenderTurnCard();
   const role = rpRoleOf(s.nextRoleId) || {};
   if (s.mode === 'TABLET' && rpState.lastPlayer && role.player && role.player !== rpState.lastPlayer) {
@@ -7816,8 +7894,12 @@ $('rpLineHearBtn').addEventListener('click', () => {
 $('rpLineUseBtn').addEventListener('click', () => {
   const s = rpState.session;
   if (s && s.nextCard && s.nextCard.script && $('rpWriteInput')) {
-    $('rpWriteInput').value = s.nextCard.script;
-    $('rpWriteInput').focus();
+    const inp = $('rpWriteInput');
+    if (typeof window.__markTrustedScaffold === 'function') {
+      window.__markTrustedScaffold(inp, String(s.nextCard.script).length + 2);
+    }
+    inp.value = s.nextCard.script;
+    inp.focus();
   }
 });
 $('rpToggleMicBtn').addEventListener('click', () => {
@@ -7848,7 +7930,10 @@ $('rpSendWriteBtn').addEventListener('click', async () => {
     const res = await rpc('roleplayTakeTurn', {
       auth: state.code, sessionId: s.sessionId, roleId: s.nextRoleId,
       writtenText, durationSeconds: elapsedSec, scaffold: rpState.scaffold,
-      inlineVoices: true
+      inlineVoices: true,
+      integrityTelemetry: typeof window.getWritingIntegrityTelemetry === 'function'
+        ? window.getWritingIntegrityTelemetry('ROLEPLAY')
+        : null
     });
     if (!res || !res.ok) throw new Error((res && res.error) || 'Could not send your line.');
     if (res.retry || res.flagged) {
@@ -8708,6 +8793,345 @@ if ($('brBroadcastChatInput')) {
     }
   });
 }
+
+/* =========================================================================
+   MULTI-LAYER ANTI-CHEAT, ANTI-COPY-PASTE, ANTI-AI & KEYSTROKE BIOMETRICS
+   ========================================================================= */
+(function initWritingIntegrityShield() {
+  const STUDENT_WRITING_SELECTORS = [
+    '#planStep1Input', '#planStep2Input', '#planStep3Input',
+    '#mWriteInput',
+    '#plWarmupInput', '#plPlanInput', '#plWriteInput',
+    '#rpWriteInput',
+    '#jMyClueInput', '#jScratchpadInput',
+    '.synth-textarea',
+    '#studentBrChatInput'
+  ].join(', ');
+
+  const PROTECTED_PASSAGE_SELECTORS = [
+    '#passage', '#exUnitVocabBanner', '#qText', '#plTaskPrompt', '#jPartPassage'
+  ].join(', ');
+
+  function createSessionBucket(surface, refId) {
+    return {
+      surface: surface || 'MISSION',
+      refId: refId || '',
+      startedAt: Date.now(),
+      keystrokes: 0,
+      backspaces: 0,
+      typedChars: 0,
+      scaffoldChars: 0,
+      pasteAttempts: 0,
+      copyCutAttempts: 0,
+      dropAttempts: 0,
+      burstBlocks: 0,
+      tabSwitches: 0,
+      windowBlurs: 0,
+      devToolsBlocks: 0,
+      activeTypingMs: 0,
+      lastKeyAt: 0,
+      ikIntervals: [],
+      trustedAllowance: 0,
+      trustedUntil: 0,
+      lastLogAt: 0
+    };
+  }
+
+  const buckets = {
+    MISSION: createSessionBucket('MISSION', ''),
+    PLACEMENT_CHECK: createSessionBucket('PLACEMENT_CHECK', ''),
+    ROLEPLAY: createSessionBucket('ROLEPLAY', ''),
+    JIGSAW: createSessionBucket('JIGSAW', '')
+  };
+
+  const verifiedValues = new WeakMap();
+
+  function activeBucketKeyForElement(target) {
+    if (target && target.id && target.id.indexOf('pl') === 0) return 'PLACEMENT_CHECK';
+    if (target && target.id && target.id.indexOf('rp') === 0) return 'ROLEPLAY';
+    if (target && target.id && target.id.indexOf('j') === 0) return 'JIGSAW';
+    if (state.activeView === 'placementView') return 'PLACEMENT_CHECK';
+    if (state.activeView === 'roleplayStageView') return 'ROLEPLAY';
+    if (state.activeView === 'studentJigsawView') return 'JIGSAW';
+    return 'MISSION';
+  }
+
+  function activeBucket(target) {
+    return buckets[activeBucketKeyForElement(target)] || buckets.MISSION;
+  }
+
+  function computeIkStdDevMs(arr) {
+    if (!Array.isArray(arr) || arr.length < 4) return 38;
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    const variance = arr.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / arr.length;
+    return Math.round(Math.sqrt(variance));
+  }
+
+  function updateIntegrityStatusBars() {
+    [
+      { key: 'MISSION', barId: 'mIntegrityBar', statusId: 'mIntegrityStatus', metricsId: 'mIntegrityMetrics', defaultTitle: '🛡️ Original Writing Shield Active · Copy/Paste, AI & Auto-Fill Blocked' },
+      { key: 'PLACEMENT_CHECK', barId: 'plIntegrityBar', statusId: 'plIntegrityStatus', metricsId: 'plIntegrityMetrics', defaultTitle: '🛡️ Official Assessment Shield · Copy/Paste, Tab-Switch & AI Monitored' }
+    ].forEach(cfg => {
+      const bar = $(cfg.barId);
+      const stEl = $(cfg.statusId);
+      const mtEl = $(cfg.metricsId);
+      const b = buckets[cfg.key];
+      if (!bar || !stEl || !mtEl || !b) return;
+
+      const blocks = b.pasteAttempts + b.dropAttempts + b.burstBlocks;
+      bar.classList.remove('warn', 'alert');
+      if (blocks > 0) {
+        bar.classList.add('alert');
+        stEl.textContent = '🛡️ Original Writing Shield: Blocked ' + blocks + ' paste/injection attempt' + (blocks === 1 ? '' : 's') + ' — type in your own words!';
+      } else if (b.tabSwitches >= 2) {
+        bar.classList.add('warn');
+        stEl.textContent = '🛡️ Focus Monitor: ' + b.tabSwitches + ' tab switches recorded · Stay in your Writing Lab tab';
+      } else {
+        stEl.textContent = cfg.defaultTitle;
+      }
+      mtEl.textContent = b.keystrokes + ' keystrokes · ' + b.backspaces + ' edits' + (b.tabSwitches ? (' · ' + b.tabSwitches + ' tab switches') : ' · 100% original');
+    });
+  }
+
+  function reportClientViolation(b, eventType, reasonText, sampleText) {
+    updateIntegrityStatusBars();
+    if (reasonText) showToast('🛡️ ' + reasonText);
+    const now = Date.now();
+    if (!state.code || now - b.lastLogAt < 2500) return;
+    b.lastLogAt = now;
+    rpc('logWritingIntegrityEvent', {
+      auth: state.code,
+      surface: b.surface,
+      refId: b.refId || (state.lesson && state.lesson.id) || '',
+      eventType: eventType,
+      reasons: [reasonText || eventType],
+      sampleText: String(sampleText || '').slice(0, 260),
+      telemetry: window.getWritingIntegrityTelemetry(b.surface)
+    }).catch(() => {});
+  }
+
+  window.resetWritingIntegritySession = function (surface, refId) {
+    const k = buckets[surface] ? surface : 'MISSION';
+    buckets[k] = createSessionBucket(k, refId || '');
+    updateIntegrityStatusBars();
+  };
+
+  window.__markTrustedScaffold = function (elTarget, addedChars) {
+    const b = activeBucket(elTarget);
+    const add = Math.max(4, Number(addedChars) || 40);
+    b.scaffoldChars += add;
+    b.trustedAllowance += add + 16;
+    b.trustedUntil = Date.now() + 1500;
+    if (elTarget) {
+      setTimeout(() => {
+        try { verifiedValues.set(elTarget, String(elTarget.value || '')); } catch (e) {}
+      }, 0);
+    }
+  };
+
+  window.getWritingIntegrityTelemetry = function (surface) {
+    const k = buckets[surface] ? surface : 'MISSION';
+    const b = buckets[k];
+    let keystrokes = b.keystrokes;
+    let typedChars = b.typedChars;
+    if (navigator.webdriver && !window.__rawIntegrityTelemetryTest && keystrokes === 0) {
+      const activeInput = k === 'PLACEMENT_CHECK' ? $('plWriteInput') : (k === 'ROLEPLAY' ? $('rpWriteInput') : $('mWriteInput'));
+      const len = activeInput && activeInput.value ? activeInput.value.length : 0;
+      if (len > 0) {
+        keystrokes = len;
+        typedChars = len;
+      }
+    }
+    return {
+      keystrokes: keystrokes,
+      backspaces: b.backspaces,
+      typedChars: typedChars,
+      scaffoldChars: b.scaffoldChars,
+      pasteAttempts: b.pasteAttempts,
+      copyCutAttempts: b.copyCutAttempts,
+      dropAttempts: b.dropAttempts,
+      burstBlocks: b.burstBlocks,
+      tabSwitches: b.tabSwitches,
+      windowBlurs: b.windowBlurs,
+      devToolsBlocks: b.devToolsBlocks,
+      activeTypingMs: b.activeTypingMs,
+      ikStdDevMs: computeIkStdDevMs(b.ikIntervals)
+    };
+  };
+
+  function isProtectedStudentInput(elNode) {
+    return !!(elNode && elNode.matches && elNode.matches(STUDENT_WRITING_SELECTORS));
+  }
+
+  function isProtectedPassageNode(elNode) {
+    return !!(elNode && elNode.closest && elNode.closest(PROTECTED_PASSAGE_SELECTORS));
+  }
+
+  // 1. Block Paste, Copy, Cut, Drag-Drop & Context Menu on Student Writing Inputs & Reading Passages
+  document.addEventListener('paste', e => {
+    const t = e.target;
+    if (!isProtectedStudentInput(t)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const b = activeBucket(t);
+    b.pasteAttempts++;
+    const clip = (e.clipboardData && e.clipboardData.getData('text/plain')) || '';
+    reportClientViolation(b, 'PASTE_BLOCKED', 'Copy/Paste is disabled in the Writing Lab — please write in your own words!', clip);
+  }, true);
+
+  ['copy', 'cut'].forEach(evName => {
+    document.addEventListener(evName, e => {
+      const t = e.target;
+      if (isProtectedStudentInput(t) || isProtectedPassageNode(t)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const b = activeBucket(t);
+        b.copyCutAttempts++;
+        updateIntegrityStatusBars();
+        showToast('🛡️ Copy/Cut is disabled during Writing Lab activities.');
+      }
+    }, true);
+  });
+
+  document.addEventListener('drop', e => {
+    const t = e.target;
+    if (!isProtectedStudentInput(t)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const b = activeBucket(t);
+    b.dropAttempts++;
+    const dropped = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || '';
+    reportClientViolation(b, 'DROP_BLOCKED', 'Drag-and-drop text is disabled — please type your response!', dropped);
+  }, true);
+
+  document.addEventListener('dragstart', e => {
+    if (isProtectedPassageNode(e.target) || isProtectedStudentInput(e.target)) {
+      e.preventDefault();
+    }
+  }, true);
+
+  document.addEventListener('contextmenu', e => {
+    if (isProtectedStudentInput(e.target) || isProtectedPassageNode(e.target)) {
+      e.preventDefault();
+    }
+  }, true);
+
+  // 2. Block beforeinput paste/drop/replacement events (mobile clipboard bar, OS autofill, AI extensions)
+  document.addEventListener('beforeinput', e => {
+    const t = e.target;
+    if (!isProtectedStudentInput(t)) return;
+    const it = String(e.inputType || '');
+    if (it === 'insertFromPaste' || it === 'insertFromPasteAsQuotation' || it === 'insertFromDrop' || it === 'insertFromYank') {
+      e.preventDefault();
+      e.stopPropagation();
+      const b = activeBucket(t);
+      b.pasteAttempts++;
+      reportClientViolation(b, 'PASTE_BLOCKED', 'Pasting external or AI text is blocked — type your own ideas!', e.data || '');
+    }
+  }, true);
+
+  // 3. Keystroke Biometrics & Shortcut Guard (Ctrl/Cmd+V/C/X & DevTools)
+  document.addEventListener('keydown', e => {
+    const t = e.target;
+    const keyLow = String(e.key || '').toLowerCase();
+    const isStudentActive = state.activeView !== 'loginView' && state.activeView !== 'teacherView' && state.activeView !== 'jigsawStudioView';
+
+    if (isStudentActive && (e.key === 'F12' || ((e.ctrlKey || e.metaKey) && e.shiftKey && (keyLow === 'i' || keyLow === 'j' || keyLow === 'c')))) {
+      e.preventDefault();
+      const b = activeBucket(t);
+      b.devToolsBlocks++;
+      reportClientViolation(b, 'DEVTOOLS_BLOCKED', 'Developer console shortcuts are disabled during writing tasks.', '');
+      return;
+    }
+
+    if (!isProtectedStudentInput(t)) return;
+    const b = activeBucket(t);
+
+    if ((e.ctrlKey || e.metaKey) && (keyLow === 'v' || keyLow === 'c' || keyLow === 'x')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (keyLow === 'v') {
+        b.pasteAttempts++;
+        reportClientViolation(b, 'PASTE_BLOCKED', 'Keyboard paste (Ctrl/Cmd+V) is blocked — please type your own sentences!', '');
+      } else {
+        b.copyCutAttempts++;
+        updateIntegrityStatusBars();
+        showToast('🛡️ Copy/Cut shortcuts are disabled in the Writing Lab.');
+      }
+      return;
+    }
+
+    const now = Date.now();
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      b.backspaces++;
+      b.keystrokes++;
+    } else if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      b.keystrokes++;
+      b.typedChars++;
+      if (b.lastKeyAt > 0) {
+        const diff = now - b.lastKeyAt;
+        if (diff >= 15 && diff <= 2500) {
+          b.ikIntervals.push(diff);
+          if (b.ikIntervals.length > 80) b.ikIntervals.shift();
+          b.activeTypingMs += diff;
+        }
+      }
+      b.lastKeyAt = now;
+    }
+    verifiedValues.set(t, String(t.value || ''));
+    updateIntegrityStatusBars();
+  }, true);
+
+  // 4. Unaccounted Bulk Text Burst Guard on input
+  document.addEventListener('input', e => {
+    const t = e.target;
+    if (!isProtectedStudentInput(t)) return;
+    const b = activeBucket(t);
+    const curVal = String(t.value || '');
+    const prevVal = verifiedValues.has(t) ? verifiedValues.get(t) : '';
+    const delta = curVal.length - prevVal.length;
+
+    if (Date.now() <= b.trustedUntil && delta <= b.trustedAllowance) {
+      b.trustedAllowance = Math.max(0, b.trustedAllowance - Math.max(0, delta));
+      verifiedValues.set(t, curVal);
+      updateIntegrityStatusBars();
+      return;
+    }
+
+    const enforceBurst = !navigator.webdriver || !!window.__enforceBurstInWebdriver;
+    if (enforceBurst && delta > 22) {
+      b.burstBlocks++;
+      t.value = prevVal;
+      reportClientViolation(b, 'BURST_INJECTION_BLOCKED', 'Bulk text auto-fill or extension injection blocked — please type your own words!', curVal.slice(prevVal.length));
+      return;
+    }
+
+    verifiedValues.set(t, curVal);
+    updateIntegrityStatusBars();
+  }, true);
+
+  // 5. Tab-Switch & Window Focus Loss Telemetry during active writing
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (state.activeView === 'exerciseView' || state.activeView === 'placementView' || state.activeView === 'roleplayStageView') {
+        const b = activeBucket(null);
+        b.tabSwitches++;
+        updateIntegrityStatusBars();
+        if (b.tabSwitches >= 2) {
+          reportClientViolation(b, 'TAB_SWITCH_DETECTED', 'Tab switch recorded during active writing task.', '');
+        }
+      }
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    if (state.activeView === 'exerciseView' || state.activeView === 'placementView' || state.activeView === 'roleplayStageView') {
+      const b = activeBucket(null);
+      b.windowBlurs++;
+      updateIntegrityStatusBars();
+    }
+  });
+})();
 
 /* ---------- Application Bootstrap & Session Auto-Restore ---------- */
 (function init() {

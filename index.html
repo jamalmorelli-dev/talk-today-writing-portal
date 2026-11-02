@@ -361,15 +361,15 @@
             <div id="planStepsBody" class="planner-steps">
               <div class="planner-step">
                 <label for="planStep1Input" id="planLabel1" class="planner-label">🌱 Step 1 (Main Idea): Who or what is your first sentence about?</label>
-                <input type="text" id="planStep1Input" class="planner-input" placeholder="Jot down your opening idea or key words...">
+                <input type="text" id="planStep1Input" class="planner-input" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Jot down your opening idea or key words...">
               </div>
               <div class="planner-step">
                 <label for="planStep2Input" id="planLabel2" class="planner-label">🔗 Step 2 (Story Detail): What detail from the story supports your answer?</label>
-                <input type="text" id="planStep2Input" class="planner-input" placeholder="Add a clue or reason from the passage...">
+                <input type="text" id="planStep2Input" class="planner-input" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Add a clue or reason from the passage...">
               </div>
               <div class="planner-step">
                 <label for="planStep3Input" id="planLabel3" class="planner-label">✨ Step 3 (Closing Thought): How will you finish your response?</label>
-                <input type="text" id="planStep3Input" class="planner-input" placeholder="Add your example, feeling, or wrap-up...">
+                <input type="text" id="planStep3Input" class="planner-input" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Add your example, feeling, or wrap-up...">
               </div>
             </div>
           </div>
@@ -409,7 +409,11 @@
                 <span class="chip" id="mWpmPill" style="font-size:11.5px">-- WPM</span>
               </div>
             </div>
-            <textarea id="mWriteInput" class="writing-textarea" rows="5" placeholder="Write your full sentences here (or click 'Insert Plan into Draft' above)..."></textarea>
+            <div id="mIntegrityBar" class="integrity-shield-bar">
+              <span id="mIntegrityStatus">🛡️ Original Writing Shield Active · Copy/Paste, AI &amp; Auto-Fill Blocked</span>
+              <span id="mIntegrityMetrics" class="muted" style="font-size:11px">0 keystrokes · 100% original</span>
+            </div>
+            <textarea id="mWriteInput" class="writing-textarea" rows="5" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Write your full sentences here (or click 'Insert Plan into Draft' above)..."></textarea>
             <div class="mic-actions" style="justify-content:space-between">
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button type="button" id="mSubmitWriteBtn" class="btn">✨ Submit to AI Writing Coach →</button>
@@ -530,7 +534,7 @@
         <div class="planner-head">
           <span class="planner-title">📝 Step A: Quick Simple Plan (Jot Down 2–3 Key Ideas First)</span>
         </div>
-        <input type="text" id="plPlanInput" class="planner-input" placeholder="Plan your key ideas, connectors, and examples here before writing...">
+        <input type="text" id="plPlanInput" class="planner-input" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Plan your key ideas, connectors, and examples here before writing...">
       </div>
 
       <!-- Official Writing Response Box -->
@@ -539,7 +543,11 @@
           <span class="mic-status">✍️ Step B: Write Your Official Response</span>
           <span class="chip" id="plWordCountPill">0 words</span>
         </div>
-        <textarea id="plWriteInput" class="writing-textarea" rows="6" placeholder="Write your full paragraph or sentences here..."></textarea>
+        <div id="plIntegrityBar" class="integrity-shield-bar">
+          <span id="plIntegrityStatus">🛡️ Official Assessment Shield · Copy/Paste, Tab-Switch &amp; AI Monitored</span>
+          <span id="plIntegrityMetrics" class="muted" style="font-size:11px">0 keystrokes · Verified Live</span>
+        </div>
+        <textarea id="plWriteInput" class="writing-textarea" rows="6" autocomplete="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false" placeholder="Write your full paragraph or sentences here..."></textarea>
         <div class="mic-actions" style="justify-content:flex-end">
           <button type="button" id="plSubmitWrittenTaskBtn" class="btn">✅ Submit Official Written Task →</button>
         </div>
