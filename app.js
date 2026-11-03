@@ -1164,9 +1164,11 @@ function stopProgress(done) {
    ========================================================================= */
 function completeStudentLogin(res, rawCode, rawEmail) {
   const isOwner = String(rawCode || '').trim().toLowerCase() === 'jamalmorelli' ||
+                  String(rawCode || '').trim().toLowerCase() === 'director' ||
+                  String(rawCode || '').trim().toLowerCase() === 'staff' ||
                   String(rawEmail || '').trim().toLowerCase() === 'jamalmorelli' ||
-                  (res.student && res.student.code === 'OWNER-PREVIEW');
-  const effEmail = isOwner ? (rawEmail || 'jamalmorelli') : rawEmail;
+                  (res.student && (res.student.code === 'OWNER-PREVIEW' || res.student.code === 'DEMO-PREVIEW' || res.student.code === 'STAFF-PREVIEW'));
+  const effEmail = isOwner ? (rawEmail || 'director@talktodayusa.org') : rawEmail;
 
   state.portalContext = {
     code: (res.student && res.student.code) || rawCode,
@@ -1190,6 +1192,44 @@ function completeStudentLogin(res, rawCode, rawEmail) {
   $('portalForm').classList.remove('hidden');
   renderDashboard(res.appData);
   showView('dashboardView');
+}
+
+if ($('staffPreviewBtn')) {
+  $('staffPreviewBtn').addEventListener('click', async () => {
+    if (state.busy) return;
+    state.busy = true;
+    $('staffPreviewBtn').disabled = true;
+    $('loginErr').textContent = '';
+    startProgress();
+    try {
+      const res = await rpc('portalOpen', { code: 'DIRECTOR', email: '', lang: 'en' });
+      if (!res || !res.ok) {
+        stopProgress(false);
+        $('loginErr').textContent = (res && res.error) || 'Director preview unavailable.';
+        return;
+      }
+      stopProgress(true);
+      completeStudentLogin(res, 'DIRECTOR', '');
+    } catch (err) {
+      stopProgress(false);
+      $('loginErr').textContent = err.message || 'Server connection failed.';
+    } finally {
+      state.busy = false;
+      $('staffPreviewBtn').disabled = false;
+    }
+  });
+}
+
+if ($('teacherToPreviewBtn')) {
+  $('teacherToPreviewBtn').addEventListener('click', async () => {
+    if (state.busy) return;
+    const btn = $('roleStudentBtn');
+    if (btn) btn.click();
+    setTimeout(() => {
+      const pBtn = $('staffPreviewBtn');
+      if (pBtn) pBtn.click();
+    }, 100);
+  });
 }
 
 $('portalForm').addEventListener('submit', async e => {
