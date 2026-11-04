@@ -8922,6 +8922,9 @@ if ($('tLaunchClassChatBtn')) {
       btn.disabled = true;
       btn.textContent = '⏳ Launching Whole-Class Chat…';
       await openJigsawStudio('teacherView', 'BREAKOUT');
+      if (typeof pollBreakoutWorkspace === 'function') {
+        await pollBreakoutWorkspace(true, true);
+      }
       const isAlreadyWhole = brState.rooms && brState.rooms.length === 1 &&
         (brState.rooms[0].roomName || '').toLowerCase().indexOf('whole') >= 0;
       if (!isAlreadyWhole) {
