@@ -1614,6 +1614,24 @@ function renderSkills(skillsObj) {
   } else {
     tipBox.classList.add('hidden');
   }
+
+  // Instant poll for Live Whole-Class Writing Chat / Breakout Rooms
+  if (state.portalContext && state.portalContext.code && state.portalContext.code !== 'OWNER-PREVIEW') {
+    if (typeof pollStudentBreakoutLive === 'function') {
+      pollStudentBreakoutLive();
+    }
+  }
+}
+
+async function pollStudentBreakoutLive() {
+  if (!state.portalContext || !state.portalContext.code || state.portalContext.code === 'OWNER-PREVIEW') return;
+  try {
+    const res = await rpc('studentBreakoutPoll', state.code);
+    if (res && res.ok) {
+      if (typeof renderStudentBreakoutBanner === 'function') renderStudentBreakoutBanner(res.breakoutRoom || null);
+      if (typeof renderStudentJigsawSection === 'function') renderStudentJigsawSection(res.jigsaws || []);
+    }
+  } catch (_) {}
 }
 
 /* ---------- 8 Categories & Talk Today Coursebook Explorer ---------- */
@@ -8623,8 +8641,28 @@ async function sendTeacherBreakoutChat(opts) {
 }
 
 async function buildWholeClassBreakoutRoom() {
-  const ws = brState.wsData;
-  if (!ws) return;
+  let attempts = 0;
+  while ((!brState.wsData || brState.pollBusy) && attempts < 40) {
+    await new Promise(r => setTimeout(r, 200));
+    attempts++;
+  }
+  let ws = brState.wsData;
+  if (!ws || !ws.students || !ws.students.length) {
+    try {
+      const res = await rpc('breakoutWorkspacePoll', jigsawEditorCreds({
+        teacherFilter: brState.teacherFilter,
+        classFilter: brState.classFilter
+      }));
+      if (res && res.ok) {
+        applyBreakoutWorkspaceData(res, true);
+        ws = brState.wsData;
+      }
+    } catch (_) {}
+  }
+  if (!ws) {
+    showBreakoutStatus('⚠️ Still loading classroom roster. Please try again in a moment.', true, false);
+    return;
+  }
   const allStudents = ws.students || [];
   let pool = brState.poolMode === 'ONLINE'
     ? allStudents.filter(s => s.isOnline)
