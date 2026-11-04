@@ -8855,11 +8855,11 @@ renderStudentBreakoutBanner = function(br) {
   chatHead.appendChild(el('span', '🟢 Live · ' + msgCount + (msgCount === 1 ? ' message' : ' messages'), 'lvl'));
   chatWrap.appendChild(chatHead);
 
-  if (br.chatPrompt) {
-    const isSpotlight = br.chatPrompt.indexOf('⭐ CLASS SPOTLIGHT') >= 0;
-    const pBanner = el('div', (isSpotlight ? '🌟 ' : '📌 ') + (isSpotlight ? br.chatPrompt : ('Teacher Writing Prompt: ' + br.chatPrompt)), 'br-prompt-banner' + (isSpotlight ? ' spotlight' : ''));
-    chatWrap.appendChild(pBanner);
-  }
+  const defaultPrompt = 'Write 2–3 compound sentences using our unit connectors (because, however, although, for example). Read and reply to your classmates!';
+  const promptText = (br.chatPrompt || defaultPrompt).trim();
+  const isSpotlight = promptText.indexOf('⭐ CLASS SPOTLIGHT') >= 0;
+  const pBanner = el('div', (isSpotlight ? '🌟 ' : '📌 ') + (isSpotlight ? promptText : ('Teacher Writing Prompt: ' + promptText)), 'br-prompt-banner' + (isSpotlight ? ' spotlight' : ''));
+  chatWrap.appendChild(pBanner);
 
   const feed = buildChatFeedElement(
     br.chatMessages,
