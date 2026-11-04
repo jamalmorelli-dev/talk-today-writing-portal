@@ -1080,78 +1080,146 @@ h2 { font-size: 20px; letter-spacing: -.01em; margin: 0 0 12px; }
 .rubric-cell .rv { font-size: 18px; font-weight: 800; color: var(--accent); }
 .rubric-cell .rl { font-size: 11px; color: var(--muted); font-weight: 700; }
 
-/* Live Breakout Room & Whole-Class Giant Chat */
+/* Live Breakout Room & Whole-Class Giant Chat Centerpiece */
+.student-breakout-banner {
+  background: radial-gradient(120% 120% at 50% 0%, rgba(14,165,233,0.18) 0%, rgba(15,23,42,0.92) 100%);
+  border: 2px solid rgba(14,165,233,0.45);
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45), 0 0 24px rgba(14,165,233,0.25);
+  position: relative;
+  overflow: hidden;
+}
+.student-breakout-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8, #818cf8, #a855f7);
+}
 .br-chat-panel {
   margin-top: 10px;
-  padding: 11px 12px;
-  border-radius: 12px;
-  background: var(--bg);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(11,18,33,0.85);
   border: 1.5px solid color-mix(in srgb, var(--accent) 38%, var(--edge));
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .br-prompt-banner {
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent2) 14%, var(--panel2));
-  border-left: 3px solid var(--accent2);
-  font-size: 12.5px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent2) 18%, var(--panel2));
+  border-left: 4px solid var(--accent2);
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--ink);
+  line-height: 1.45;
+}
+.br-prompt-banner.spotlight {
+  background: linear-gradient(135deg, rgba(234,179,8,0.2), rgba(245,158,11,0.15));
+  border-left: 4px solid #facc15;
+  box-shadow: 0 0 18px rgba(250,204,21,0.25);
 }
 .br-chat-feed {
-  max-height: 210px;
-  min-height: 92px;
+  max-height: 250px;
+  min-height: 110px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 9px;
-  background: var(--panel);
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.3);
   border: 1px solid var(--edge);
 }
 .br-chat-msg {
-  padding: 7px 10px;
-  border-radius: 10px;
-  font-size: 12.5px;
-  line-height: 1.42;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
   background: var(--panel2);
   border: 1px solid var(--edge);
+  max-width: 90%;
+  animation: fadeIn 0.2s ease-in-out;
 }
 .br-chat-msg.teacher {
-  background: color-mix(in srgb, var(--accent2) 15%, var(--panel2));
-  border-color: color-mix(in srgb, var(--accent2) 45%, var(--edge));
+  align-self: flex-start;
+  background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(14,165,233,0.18));
+  border-color: rgba(56,189,248,0.5);
 }
 .br-chat-msg.student {
-  background: color-mix(in srgb, var(--accent) 10%, var(--panel2));
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--edge));
+  align-self: flex-start;
+  background: rgba(30,41,59,0.75);
+  border-color: rgba(255,255,255,0.1);
+}
+.br-chat-msg.student.self {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(16,185,129,0.22), rgba(5,150,105,0.18));
+  border-color: rgba(52,211,153,0.4);
 }
 .br-chat-msg-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
+  font-size: 11.5px;
   font-weight: 800;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   color: var(--accent);
 }
 .br-chat-msg.teacher .br-chat-msg-head { color: var(--accent2); }
 .br-chat-compose {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 .br-chat-compose input {
   flex: 1;
-  padding: 7px 10px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
   border: 1px solid var(--edge);
   background: var(--panel);
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 13px;
+}
+.connector-chips-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px 0 2px;
+}
+.connector-chip {
+  background: rgba(14,165,233,0.15);
+  border: 1px solid rgba(56,189,248,0.35);
+  color: #38bdf8;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.connector-chip:hover {
+  background: rgba(14,165,233,0.35);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.spotlight-btn {
+  background: transparent;
+  border: 1px solid rgba(250,204,21,0.4);
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+.spotlight-btn:hover {
+  background: rgba(250,204,21,0.2);
 }
 
 /* Original Writing Integrity & Keystroke Biometrics Shield */

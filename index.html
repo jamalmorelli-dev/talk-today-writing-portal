@@ -71,7 +71,7 @@
         <div id="progStageLabel" class="prog-label">Verifying student record...</div>
       </div>
 
-      <form id="portalForm">
+      <form id="portalForm" novalidate>
         <input type="text" id="studentCode" class="portal-input" placeholder="4-digit student code (e.g. 1042)" autocomplete="off">
         <input type="email" id="parentEmail" class="portal-input" placeholder="Registered guardian email" autocomplete="username">
         <button id="loginSubmitBtn" type="submit" class="btn" style="width:100%">Open Writing Lab →</button>
@@ -612,6 +612,7 @@
           <div class="muted" id="tLastSyncText" style="font-size:12.5px;margin-top:4px">Real-time Socrative student presence, Simple Plans, Written Drafts &amp; AI Writing Coach feedback</div>
         </div>
         <div class="t-controls">
+          <button type="button" id="tLaunchClassChatBtn" class="jigsaw-cta-btn" style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;font-weight:800;border:1px solid rgba(255,255,255,0.25);box-shadow:0 0 18px rgba(14,165,233,0.45);cursor:pointer;padding:8px 16px;border-radius:10px;font-size:13px;display:inline-flex;align-items:center;gap:6px">💬 Whole-Class Live Chat</button>
           <button type="button" id="tOpenBreakoutBtn" class="jigsaw-cta-btn">🚪 Breakout Rooms &amp; Groups</button>
           <button type="button" id="tOpenJigsawBtn" class="jigsaw-cta-btn">🧩 Create / Manage Jigsaw</button>
           <button type="button" id="tTogglePlacementBtn" class="iconBtn" title="Review Official 2-Task Writing Placement &amp; Biweekly Submissions">✍️ Placement Queue (0)</button>
@@ -708,7 +709,9 @@
     <div id="tInspectorBox" class="inspector-card hidden"></div>
   </section>
 
-    <section id="jigsawStudioView" class="hidden">
+         6. ADMIN & TEACHER COOPERATIVE JIGSAW READING STUDIO + LIVE COMMAND CENTER
+       ========================================================================= -->
+  <section id="jigsawStudioView" class="hidden">
     <div class="t-bar">
       <div class="t-bar-top">
         <div>
@@ -829,9 +832,22 @@
           <input type="text" id="brBroadcastPromptInput" class="j-input" style="flex:1;min-width:240px" placeholder="📌 Pin a Room Writing Prompt (e.g., Write 2 sentences together using 'because' and 'finally'!)">
           <button type="button" id="brSetPromptBtn" class="iconBtn" style="font-weight:800">📌 Pin Writing Prompt</button>
         </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
+          <span class="muted" style="font-size:11.5px;font-weight:700">Quick Prompt Presets:</span>
+          <button type="button" id="brPromptWarmupBtn" class="part-badge" style="cursor:pointer">⚡ Sentence Warmup</button>
+          <button type="button" id="brPromptConnectorBtn" class="part-badge" style="cursor:pointer">🔗 Connector Drill</button>
+          <button type="button" id="brPromptSensoryBtn" class="part-badge" style="cursor:pointer">🎨 Sensory Clues</button>
+          <button type="button" id="brPromptOpinionBtn" class="part-badge" style="cursor:pointer">💡 Opinion Challenge</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
           <input type="text" id="brBroadcastChatInput" class="j-input" style="flex:1;min-width:240px" placeholder="💬 Type a live message to the room chat (students see &amp; reply in real time)...">
           <button type="button" id="brBroadcastChatBtn" class="btn" style="padding:8px 16px;font-size:13px">💬 Send to Room Chat →</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">
+          <span class="muted" style="font-size:11.5px;font-weight:700">Quick Teacher Praise:</span>
+          <button type="button" id="brPraiseConnectorBtn" class="part-badge" style="cursor:pointer">👏 Great connector!</button>
+          <button type="button" id="brPraiseDetailBtn" class="part-badge" style="cursor:pointer">🎯 Expand with a reason!</button>
+          <button type="button" id="brPraiseVocabBtn" class="part-badge" style="cursor:pointer">✨ Excellent vocabulary!</button>
         </div>
       </div>
 
@@ -1226,8 +1242,6 @@
         <div id="jStep4MediaShowcase" class="story-showcase hidden"></div>
         <div id="jAssembledStoryBox"></div>
       </div>
-    </div>
-  </section>
 
   <!-- =========================================================================
        6. ROLEPLAY & CO-WRITING STAGE — SCENE HUB
